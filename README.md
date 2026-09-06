@@ -347,3 +347,7 @@ If this navigation framework is used for research or any other work, please make
   isbn = {9781665490429},
 }
 ```
+
+## ROS 2 Jazzy
+
+This tree ports Cardiff `humble-devel` (`c67d74a`) to ROS 2 Jazzy. The ROS 1 `*.launch` files above remain as historical examples; the supported entry is the ROS 2 `*.launch.py` in each package `launch/` directory. `pedsim_msgs` is an external dependency (not vendored). See [UPSTREAM.md](UPSTREAM.md).

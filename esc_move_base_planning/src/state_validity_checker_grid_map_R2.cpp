@@ -14,6 +14,15 @@
 
 #include <state_validity_checker_grid_map_R2.h>
 
+namespace
+{
+bool matrixIndexInBounds(const grid_map::Matrix &m, const grid_map::Index &index)
+{
+  return m.size() > 0 && index(0) >= 0 && index(1) >= 0 && index(0) < m.rows() &&
+         index(1) < m.cols();
+}
+}  // namespace
+
 GridMapStateValidityCheckerR2::GridMapStateValidityCheckerR2(const ob::SpaceInformationPtr &si,
                                                              const bool opport_collision_check,
                                                              std::vector<double> planning_bounds_x,
@@ -44,6 +53,16 @@ GridMapStateValidityCheckerR2::GridMapStateValidityCheckerR2(const ob::SpaceInfo
     catch (...)
     {
     }
+
+    // PATCH (isaac-social-nav): fallback if /get_grid_map ever has comfort ≠ full
+    // (mapper rebuilds comfort; keep this for stale snapshots).
+    if (obstacles_grid_map_.size() > 0 &&
+        (comfort_grid_map_.rows() != obstacles_grid_map_.rows() ||
+         comfort_grid_map_.cols() != obstacles_grid_map_.cols()))
+    {
+        comfort_grid_map_ = grid_map::Matrix::Ones(
+            obstacles_grid_map_.rows(), obstacles_grid_map_.cols());
+    }
 }
 
 bool GridMapStateValidityCheckerR2::isValid(const ob::State *state) const
@@ -69,13 +88,21 @@ bool GridMapStateValidityCheckerR2::isValid(const ob::State *state) const
         return false;
     }
 
+    if (obstacles_grid_map_.size() == 0)
+    {
+        return true;
+    }
+
     grid_map::Position query(state_r2->values[0], state_r2->values[1]);
 
     for (grid_map::CircleIterator iterator(grid_map_, query, robot_base_radius_);
          !iterator.isPastEnd(); ++iterator)
     {
         const grid_map::Index index(*iterator);
-
+        if (!matrixIndexInBounds(obstacles_grid_map_, index))
+        {
+            continue;
+        }
         if (obstacles_grid_map_(index(0), index(1)) > 20)
         {
             return false;
@@ -96,7 +123,7 @@ double GridMapStateValidityCheckerR2::checkExtendedSocialComfort(const ob::State
 
     grid_map::Index index;
 
-    if (grid_map_.getIndex(query, index))
+    if (grid_map_.getIndex(query, index) && matrixIndexInBounds(comfort_grid_map_, index))
     {
         state_risk = comfort_grid_map_(index(0), index(1));
     }
@@ -119,7 +146,7 @@ bool GridMapStateValidityCheckerR2::isValidPoint(const ob::State *state) const
 
     grid_map::Index index;
 
-    if (grid_map_.getIndex(query, index))
+    if (grid_map_.getIndex(query, index) && matrixIndexInBounds(obstacles_grid_map_, index))
     {
         if (obstacles_grid_map_(index(0), index(1)) > 20)
         {

@@ -209,7 +209,18 @@ WorldModeler::WorldModeler()
     loop_rate.sleep();
   }
   RCLCPP_WARN(this->get_logger(), "Odometry received.");
+  // PATCH (isaac-social-nav): offline OcTree must become a GridMap before
+  // /get_grid_map is advertised. Humble-devel only rebuilt the grid from
+  // depth PointCloud or rviz_timer; cameras-off + rviz_timer=0 left 1x1
+  // empty, and opport_collision_check treats out-of-map states as valid.
+  if (offline_octomap_path_.size() > 0)
+  {
+    defineSocialGridMap();
+    RCLCPP_WARN(this->get_logger(),
+                "Offline octomap loaded; social grid built. Live laser still on (props/people).");
+  }
 
+  // POINTCLOUD only when there is no offline tree (depth hops / live-laser-only).
   if (offline_octomap_path_.size() == 0)
   {
     // POINTCLOUD
@@ -227,7 +238,14 @@ WorldModeler::WorldModeler()
     point_cloud_mn_->connectInput(*point_cloud_sub_);
     point_cloud_mn_->setTargetFrames(pc_need_frames);
     point_cloud_mn_->registerCallback(&WorldModeler::pointCloudCallback, this);
+  }
 
+  // PATCH (isaac-social-nav): always subscribe to laser. Humble-devel skipped
+  // /scan whenever offline_octomap_path was set, so hospital.bt (walls from
+  // hospital.png) never saw the USD stretcher or people — 8 m chord, same as
+  // occupancy A* #78. Do not paint hospital.png. Laser callback already calls
+  // defineSocialGridMap() after insertScan.
+  {
     // LASERSCAN
     std::vector<std::string> laser_need_frames;
     laser_need_frames.push_back(point_cloud_frame_);
@@ -507,6 +525,18 @@ void WorldModeler::laserScanCallback(const sensor_msgs::msg::LaserScan::SharedPt
   pc_nonground.header = pc.header;
 
   insertScan(sensorToWorldTf.transform.translation, pc_ground, pc_nonground, mapping_max_range_, minimum_range_);
+  // PATCH (isaac-social-nav): live laser must refresh the 2D occupancy layer
+  // (Humble-devel only did this in the unused PointCloud callback).
+  defineSocialGridMap();
+  {
+    static bool logged_once = false;
+    if (!logged_once)
+    {
+      logged_once = true;
+      RCLCPP_WARN(this->get_logger(),
+                  "Live laser inserting into OcTree (stretcher/people hits).");
+    }
+  }
 }
 
 //! Pointcloud callback.
@@ -1189,15 +1219,30 @@ void WorldModeler::defineSocialGridMap()
     RCLCPP_WARN(this->get_logger(), "No full layer after fromOctomap, skipping defineSocialGridMap");
     return;
   }
-  if (!grid_map_.exists("comfort"))
+
+  // PATCH (isaac-social-nav): fromOctomap resizes "full" but leaves a stale
+  // 1×1 "comfort" layer from initializeGridMap(). ExtendedSocialComfort needs
+  // comfort matched to full before painting agent costs.
+  if (grid_map_.exists("comfort"))
   {
-    grid_map_.add("comfort");
+    grid_map_.erase("comfort");
   }
+  grid_map_.add("comfort");
 
   grid_map_["full"] = 150 * grid_map_["full"];
 
   grid_map::Matrix &full_grid_map = grid_map_["full"];
   grid_map::Matrix &comfort_grid_map = grid_map_["comfort"];
+
+  if (comfort_grid_map.rows() != full_grid_map.rows() ||
+      comfort_grid_map.cols() != full_grid_map.cols())
+  {
+    comfort_grid_map = grid_map::Matrix::Ones(full_grid_map.rows(), full_grid_map.cols());
+  }
+  else
+  {
+    comfort_grid_map.setOnes();
+  }
 
   // !SOCIAL AGENTS GRID MAP PREPARATION
 

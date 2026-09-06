@@ -10,7 +10,9 @@ import math
 import numpy as np
 
 import rclpy
+from rclpy._rclpy_pybind11 import RCLError
 from rclpy.node import Node
+from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 
 # ROS messages
 from geometry_msgs.msg import Twist
@@ -122,19 +124,41 @@ class Controller(Node):
         # =======================================================================
         # Publishers
         # =======================================================================
+        cmd_vel_qos = QoSProfile(
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            durability=DurabilityPolicy.VOLATILE,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=10,
+        )
         self.control_output_pub_ = self.create_publisher(
-            Twist, self.control_output_topic_, 10
+            Twist, self.control_output_topic_, cmd_vel_qos
         )
         self.control_active_pub_ = self.create_publisher(
             Bool, self.control_active_topic_, 10
         )
         self.controller_state = 0
+        self._cmd_vel_publish_failures = 0
 
         self.timer = self.create_timer(1 / self.controller_hz_, self.controlBaseEsc)
 
+    def _publish_cmd_vel(self, twist: Twist) -> None:
+        # Fast DDS can reject a /cmd_vel write when Isaac is slow (UDP profile,
+        # hospital+cameras load). Uncaught RCLError kills this node; kinematic
+        # Stretch then holds the last twist. BEST_EFFORT matches keepalive; skip
+        # the tick on transient publish failures.
+        try:
+            self.control_output_pub_.publish(twist)
+        except RCLError:
+            self._cmd_vel_publish_failures += 1
+            if self._cmd_vel_publish_failures in (1, 100, 500):
+                self.get_logger().warning(
+                    "/cmd_vel publish failed (%d); skipping tick"
+                    % self._cmd_vel_publish_failures
+                )
+
     def publishStopCommand(self):
         """Publish a zero velocity command and mark the controller as inactive."""
-        self.control_output_pub_.publish(Twist())
+        self._publish_cmd_vel(Twist())
         self.control_active_pub_.publish(Bool(data=False))
 
     def stopMotionCallback(self, stop_motion_msg):
@@ -311,7 +335,7 @@ class Controller(Node):
                     control_input.angular.z = -self.max_turn_rate_
                 elif control_input.angular.z > self.max_turn_rate_:
                     control_input.angular.z = self.max_turn_rate_
-                self.control_output_pub_.publish(control_input)
+                self._publish_cmd_vel(control_input)
 
             else:
                 if len(self.solution_path_wps_) > 1:
@@ -358,7 +382,7 @@ class Controller(Node):
 
                             control_input.linear.x = -0.05
 
-                        self.control_output_pub_.publish(control_input)
+                        self._publish_cmd_vel(control_input)
                     else:
                         self.controller_state = 2
                         self.get_logger().debug(
@@ -383,7 +407,7 @@ class Controller(Node):
                             else:
                                 control_input.linear.x = -self.drift_turning_vel_
                                 control_input.angular.z = self.min_turn_rate_ * 5
-                            self.control_output_pub_.publish(control_input)
+                            self._publish_cmd_vel(control_input)
 
             # self.get_logger().debug("%s: yaw_error: %f", self.get_name(), yaw_error)
             # self.get_logger().debug("%s: distance_to_goal: %f", self.get_name(), distance_to_goal)

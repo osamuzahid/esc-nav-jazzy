@@ -24,6 +24,11 @@ find_package(grid_map_ros REQUIRED)
 find_package(grid_map_sdf REQUIRED)
 find_package(grid_map_visualization REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(cv_bridge REQUIRED)
+find_package(visualization_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
+find_package(message_filters REQUIRED)
 find_package(octomap_msgs REQUIRED)
 find_package(OCTOMAP REQUIRED)
 find_package(octomap_server REQUIRED)
@@ -55,6 +60,12 @@ set(dependencies
     grid_map_ros
     grid_map_msgs
     tf2_geometry_msgs
+    tf2_ros
+    cv_bridge
+    visualization_msgs
+    sensor_msgs
+    std_srvs
+    message_filters
     octomap_msgs
     octomap_server
     pcl_ros
@@ -71,5 +82,8 @@ target_link_libraries(esc_move_base_mapper ${OCTOMAP_LIBRARIES})
 install(TARGETS
   esc_move_base_mapper
   DESTINATION lib/${PROJECT_NAME})
+
+install(DIRECTORY config launch
+  DESTINATION share/${PROJECT_NAME})
 
 ament_package()

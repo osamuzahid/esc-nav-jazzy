@@ -25,7 +25,9 @@
 // tf2
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/message_filter.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+// ORIGINALLY: #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+// PATCH (isaac-social-nav): Jazzy only ships the .hpp (Humble-era .h is gone).
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <tf2_ros/buffer.h>
 #include "message_filters/subscriber.h"
 #include <tf2_ros/create_timer_ros.h>
@@ -42,12 +44,17 @@ typedef octomap_msgs::srv::GetOctomap OctomapSrv;
 #include <grid_map_octomap/grid_map_octomap.hpp>
 #include <grid_map_msgs/srv/get_grid_map.hpp>
 #include <grid_map_cv/grid_map_cv.hpp>
-#include <cv_bridge/cv_bridge.h>
+// ORIGINALLY: #include <cv_bridge/cv_bridge.h>
+// PATCH (isaac-social-nav): Jazzy only ships cv_bridge.hpp.
+#include <cv_bridge/cv_bridge.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
 // PCL
 #include <pcl_conversions/pcl_conversions.h>
+// PATCH (isaac-social-nav): Jazzy PCL 1.14 no longer pulls this transitively;
+// pcl::transformPointCloud lives here.
+#include <pcl/common/transforms.h>
 #include <pcl/filters/extract_indices.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl/io/pcd_io.h>

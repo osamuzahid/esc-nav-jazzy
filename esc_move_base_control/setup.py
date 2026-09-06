@@ -9,6 +9,10 @@ setup(
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
         ("share/" + package_name, ["package.xml"]),
+        # PATCH (isaac-social-nav): install YAML so ROS 2 launch can load params
+        # from share (ROS 1 launch used $(find …)/config).
+        ("share/" + package_name + "/config", ["config/esc_move_base_control.yaml"]),
+        ("share/" + package_name + "/launch", ["launch/esc_move_base_control.launch"]),
     ],
     install_requires=["setuptools"],
     zip_safe=True,

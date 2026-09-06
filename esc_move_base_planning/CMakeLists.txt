@@ -67,4 +67,7 @@ install(TARGETS
   esc_move_base_planner
   DESTINATION lib/${PROJECT_NAME})
 
+install(DIRECTORY config launch
+  DESTINATION share/${PROJECT_NAME})
+
 ament_package()

@@ -33,6 +33,8 @@
 
 .vscode/
 build/
+/install/
+/log/
 devel/
 bags/
 .qi/

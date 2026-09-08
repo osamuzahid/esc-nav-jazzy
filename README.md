@@ -1,3 +1,15 @@
+## Origin
+
+Fork of [CardiffUniversityComputationalRobotics/esc-nav-stack](https://github.com/CardiffUniversityComputationalRobotics/esc-nav-stack) (`humble-devel`, `c67d74a`).
+
+**Why:** upstream is a ROS 2 Humble stack with ROS 1 `*.launch` examples. This tree runs on **ROS 2 Jazzy** (Ubuntu 24.04) with Isaac Sim: offline octomap GridMap, live `/scan`, and ROS 2 `*.launch.py`.
+
+**What this tree adds:** Jazzy CMake/setup, comfort rebuilt with the obstacle layer, BEST_EFFORT `/cmd_vel`, planner index bounds. `pedsim_msgs` is an external dependency (not vendored). ROS 1 launch files below are historical.
+
+SHAs and freeze deltas: [UPSTREAM.md](UPSTREAM.md).
+
+---
+
 # Extended Social Comfort Robot Navigation Framework
 
 This is an online social robot navigation framework for indoor social scenarios. From this work a paper conference was submitted [Towards Online Socially Acceptable Robot Navigation](https://ieeexplore.ieee.org/document/9926686). Check the [Cite Our Paper](#cite-our-paper) in case you use this framework for your research or work.
@@ -350,4 +362,4 @@ If this navigation framework is used for research or any other work, please make
 
 ## ROS 2 Jazzy
 
-This tree ports Cardiff `humble-devel` (`c67d74a`) to ROS 2 Jazzy. The ROS 1 `*.launch` files above remain as historical examples; the supported entry is the ROS 2 `*.launch.py` in each package `launch/` directory. `pedsim_msgs` is an external dependency (not vendored). See [UPSTREAM.md](UPSTREAM.md).
+See [Origin](#origin) above. The ROS 1 `*.launch` files in this README remain as historical examples.

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -66,7 +67,7 @@ def test_ros2_launch_py_wraps_existing_nodes() -> None:
         "qos_relay",
         "stretch",
         "reachy",
-        "/home/osamuzahid",
+        "/home/",
     )
     for rel, (pkg, exe) in expected.items():
         text = _read(rel)
@@ -93,18 +94,32 @@ def test_mapping_package_xml_declares_cmake_extras() -> None:
 def test_no_vendored_pedsim_or_lab_home() -> None:
     assert not (ROOT / "pedsim_msgs").exists()
     assert not (ROOT / "patches").exists()
-    needle = "/home/" + "osamuzahid"
+    allowed = {
+        "esc_move_base_mapping/config/esc_move_base_mapping.yaml": (
+            '# offline_octomap_path: "/home/sasm/pepper_nav_ws/'
+            'src/pepper_pipeline/map/offline_map_2.bt"'
+        ),
+    }
     hits = []
-    skip_parts = {".git", "tests"}
-    for path in ROOT.rglob("*"):
-        if skip_parts.intersection(path.parts) or not path.is_file():
+    tracked = subprocess.check_output(
+        ["git", "ls-files"], cwd=ROOT, text=True
+    ).splitlines()
+    for rel in tracked:
+        if rel.startswith("tests/") or "/tests/" in rel:
             continue
+        path = ROOT / rel
         if path.suffix in {".png", ".bt", ".dae", ".usd"}:
             continue
         try:
             text = path.read_text(encoding="utf-8")
-        except UnicodeDecodeError:
+        except (UnicodeDecodeError, OSError):
             continue
-        if needle in text:
-            hits.append(str(path.relative_to(ROOT)))
+        if "/home/" not in text:
+            continue
+        remainder = text
+        example = allowed.get(rel)
+        if example:
+            remainder = remainder.replace(example, "", 1)
+        if "/home/" in remainder:
+            hits.append(rel)
     assert hits == []
